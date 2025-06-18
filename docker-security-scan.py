@@ -6,6 +6,7 @@ import shutil
 import json
 import html
 from datetime import datetime
+import argparse
 
 try:
     from jinja2 import Environment, FileSystemLoader, select_autoescape
@@ -14,35 +15,56 @@ except ImportError:
     sys.exit(1)
 
 import concurrent.futures
+import logging
+
+# --- Enhanced Logging Setup ---
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    handlers=[
+        logging.StreamHandler(sys.stdout)
+    ]
+)
+logger = logging.getLogger("yeedu-jfrog-scan")
 
 def check_command(cmd):
-    return shutil.which(cmd) is not None
+    found = shutil.which(cmd) is not None
+    if found:
+        logger.debug(f"Command '{cmd}' found in PATH.")
+    else:
+        logger.error(f"Command '{cmd}' not found in PATH.")
+    return found
 
 def run_cmd(cmd, capture_output=True):
+    logger.debug(f"Running command: {cmd}")
     try:
         result = subprocess.run(cmd, shell=True, check=True, capture_output=capture_output, text=True)
+        logger.debug(f"Command succeeded: {cmd}")
         return result.stdout.strip()
     except subprocess.CalledProcessError as e:
+        logger.error(f"Command failed: {cmd}\nReturn code: {e.returncode}\nOutput: {e.output}\nError: {e.stderr}")
         return None
 
 def scan_image(image, temp_dir):
     safe_name = image.replace('/', '_').replace(':', '_')
     result_file = os.path.join(temp_dir, f"{safe_name}_scan.json")
-    print(f"Scanning {image}...")
-    print(f"Running JFrog scan for {image}... ", end="")
+    logger.info(f"Scanning image: {image}")
+    logger.debug(f"Result file: {result_file}")
     scan_cmd = f'jf docker scan "{image}" --format simple-json'
+    logger.info(f"Running JFrog scan for {image}...")
     scan_out = run_cmd(scan_cmd)
     if scan_out is None:
-        print("Error scanning. Skipping...")
+        logger.error(f"Error scanning image '{image}'. Skipping.")
         return None
     with open(result_file, "w") as rf:
         rf.write(scan_out)
-    print("Done!")
+    logger.info(f"Scan completed for {image}")
 
     with open(result_file) as rf:
         try:
             data = json.load(rf)
-        except Exception:
+        except Exception as ex:
+            logger.error(f"Failed to parse JSON for image '{image}': {ex}")
             data = {}
     vulns = data.get('vulnerabilities', []) or []
 
@@ -52,6 +74,8 @@ def scan_image(image, temp_dir):
     medium_count = sum(1 for v in vulns if v and v.get('severity') == 'Medium')
     low_count = sum(1 for v in vulns if v and v.get('severity') == 'Low')
     unknown_count = sum(1 for v in vulns if v and v.get('severity') == 'Unknown')
+
+    logger.info(f"Image '{image}': Critical={critical_count}, High={high_count}, Medium={medium_count}, Low={low_count}, Unknown={unknown_count}")
 
     # Prepare vulnerability details for template
     vuln_details = []
@@ -88,7 +112,7 @@ def scan_image(image, temp_dir):
             'summary': truncated_summary,
             'fixed': fixed,
             'cves': ', '.join([badge['id'] for badge in cve_list]) if cve_list else 'N/A',
-            'cve_list': cve_list,  # list of dicts with id and url
+            'cve_list': cve_list,
             'vuln_id': vuln_id,
             'details': details,
             'issue_id': issue_id,
@@ -114,22 +138,35 @@ def scan_image(image, temp_dir):
         'unknown': unknown_count,
         'total': critical_count + high_count + medium_count + low_count + unknown_count,
     }
-    print(f"Completed scanning {image}")
+    logger.debug(f"Completed processing image '{image}'")
     return (image_report, summary_row)
 
 def main():
+    logger.info("Starting Yeedu JFrog Docker Vulnerability Scan")
+
+    # --- Argument parsing for --images ---
+    parser = argparse.ArgumentParser(description="Scan Docker images for vulnerabilities using JFrog Xray.")
+    parser.add_argument(
+        "--images",
+        nargs="+",
+        help="List of Docker images to scan (e.g. repo1:tag1 repo2:tag2). If not provided, all local images will be scanned."
+    )
+    args = parser.parse_args()
+
     # Check dependencies
     if not check_command('jf'):
+        logger.critical("JFrog CLI (jf) is not installed or not found in PATH. Exiting.")
         print("Error: JFrog CLI (jf) is not installed or not found in PATH")
         print("Please install it from https://jfrog.com/getcli/")
         sys.exit(1)
     if not check_command('docker'):
+        logger.critical("Docker is not installed or not found in PATH. Exiting.")
         print("Error: Docker is not installed or not found in PATH")
         sys.exit(1)
 
     # Create temp dir
     temp_dir = tempfile.mkdtemp()
-    print(f"Temporary files will be stored in {temp_dir}")
+    logger.info(f"Temporary files will be stored in {temp_dir}")
 
     # Stats
     total_critical = 0
@@ -142,22 +179,36 @@ def main():
     html_report = f"docker_security_scan_report_{now}.html"
 
     # Get docker images
-    images = run_cmd('docker images --format "{{.Repository}}:{{.Tag}}"')
-    if not images:
-        print("No Docker images found.")
-        shutil.rmtree(temp_dir)
-        sys.exit(1)
-    images = [img for img in images.splitlines() if "<none>" not in img]
+    if args.images:
+        images = args.images
+        logger.info(f"Scanning only provided images: {images}")
+    else:
+        logger.info("Retrieving Docker images...")
+        images_str = run_cmd('docker images --format "{{.Repository}}:{{.Tag}}"')
+        if not images_str:
+            logger.warning("No Docker images found. Exiting.")
+            print("No Docker images found.")
+            shutil.rmtree(temp_dir)
+            sys.exit(1)
+        images = [img for img in images_str.splitlines() if "<none>" not in img]
+        logger.info(f"Found {len(images)} Docker images to scan.")
 
     image_reports = []
     summary_table = []
 
     # Parallel scan
+    logger.info("Starting parallel scan of images...")
     with concurrent.futures.ThreadPoolExecutor() as executor:
         futures = {executor.submit(scan_image, image, temp_dir): image for image in images}
         for future in concurrent.futures.as_completed(futures):
-            result = future.result()
+            image = futures[future]
+            try:
+                result = future.result()
+            except Exception as exc:
+                logger.error(f"Exception occurred while scanning image '{image}': {exc}")
+                continue
             if result is None:
+                logger.warning(f"Scan result for image '{image}' is None. Skipping.")
                 continue
             image_report, summary_row = result
             image_reports.append(image_report)
@@ -172,7 +223,7 @@ def main():
     image_reports.sort(key=lambda x: x['image'])
     summary_table.sort(key=lambda x: x['image'])
 
-    # Render HTML using Jinja2
+    logger.info("Rendering HTML report using Jinja2 template...")
     env = Environment(
         loader=FileSystemLoader(os.path.dirname(os.path.abspath(__file__))),
         autoescape=select_autoescape(['html', 'xml'])
@@ -193,10 +244,11 @@ def main():
 
     with open(html_report, "w") as f:
         f.write(rendered)
+    logger.info(f"Report generated: {html_report}")
 
-    print("Cleanup temporary files...")
+    logger.info("Cleanup temporary files...")
     shutil.rmtree(temp_dir)
-    print(f"Report generated: {html_report}")
+    logger.info("Temporary files cleaned up. Scan complete.")
 
 if __name__ == "__main__":
     main()

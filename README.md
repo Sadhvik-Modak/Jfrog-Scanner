@@ -1,33 +1,33 @@
 # Yeedu JFrog Docker Vulnerability Report
 
-This tool scans all local Docker images for vulnerabilities using JFrog Xray and generates a modern, enterprise-grade HTML dashboard report.
+This tool scans Docker images for vulnerabilities using JFrog Xray and generates a modern, enterprise-grade HTML dashboard report.
 
 ---
 
 ## Features
 
-- **Parallel scanning** of all local Docker images for maximum speed.
+- **Parallel scanning** of Docker images for fast results.
 - **Enterprise-grade HTML dashboard** with interactive charts, summary tables, and detailed vulnerability breakdowns.
 - **Clickable CVE badges** with direct links to NVD.
 - **Severity color coding** and easy navigation between images.
 - **Responsive, modern UI** for easy browsing and reporting.
+- **Flexible image selection:**  
+  Scan all local images or only specific images using the `--images` option.
+- **Enhanced logging:**  
+  Detailed progress and error logs for troubleshooting.
 
 ---
 
 ## Prerequisites
 
 1. **Python 3.7+**  
-   Make sure Python 3 is installed.
-
 2. **JFrog CLI**  
    Install from [https://jfrog.com/getcli/](https://jfrog.com/getcli/)
-
 3. **Jinja2 Python package**  
    Install with:
    ```bash
-   pip install jinja2
+   pip install -r requirements.txt
    ```
-
 4. **Docker**  
    Ensure Docker is installed and running.
 
@@ -51,23 +51,32 @@ This tool scans all local Docker images for vulnerabilities using JFrog Xray and
 
 ## Usage
 
-1. **Run the scan:**
-   ```bash
-   python3 docker-security-scan.py
-   ```
+### Scan all local Docker images:
+```bash
+python3 docker-security-scan.py
+```
 
-2. **View the report:**  
-   After completion, open the generated HTML file (e.g., `docker_security_scan_report_YYYYMMDD_HHMMSS.html`) in your browser.
+### Scan only specific images:
+```bash
+python3 docker-security-scan.py --images repo1:tag1 repo2:tag2
+```
+
+### Example:
+```bash
+python3 docker-security-scan.py --images ubuntu:latest myapp:1.0
+```
+
+After completion, open the generated HTML file (e.g., `docker_security_scan_report_YYYYMMDD_HHMMSS.html`) in your browser.
 
 ---
 
 ## Output
 
-- The report includes:
-  - **Dashboard:** Pie and bar charts for overall and per-image vulnerability distribution.
-  - **Summary Table:** All images with counts by severity.
-  - **Per-Image Details:** Expandable tables with package, version, summary, fixed versions, CVEs (as clickable badges), and references.
-  - **Navigation:** Jump links and "Back to Top" for easy browsing.
+- **Dashboard:** Pie and bar charts for overall and per-image vulnerability distribution.
+- **Summary Table:** All images with counts by severity.
+- **Per-Image Details:** Expandable tables with package, version, summary, fixed versions, CVEs (as clickable badges), and references.
+- **Navigation:** Jump links and "Back to Top" for easy browsing.
+- **Logs:** Detailed progress and error logs are printed to the console.
 
 ---
 
@@ -80,7 +89,7 @@ This tool scans all local Docker images for vulnerabilities using JFrog Xray and
   Install and configure JFrog CLI as described above.
 
 - **Jinja2 not installed:**  
-  Run `pip install jinja2`.
+  Run `pip install -r requirements.txt`.
 
 - **Docker not running:**  
   Start Docker and ensure you have permission to run Docker commands.
