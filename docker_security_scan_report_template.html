@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Docker Security Scan Report</title>
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+    <style>
+body {
+    font-family: 'Segoe UI', 'Inter', Arial, sans-serif;
+    background: #f7fafd;
+    color: #23272f;
+    margin: 0;
+    padding: 0;
+}
+.enterprise-header {
+    background: linear-gradient(90deg, #232526 0%, #414345 100%);
+    color: #fff;
+    padding: 48px 48px 24px 48px;
+    border-radius: 0 0 18px 18px;
+    box-shadow: 0 6px 32px rgba(0,0,0,0.13);
+    margin-bottom: 40px;
+    letter-spacing: 0.01em;
+}
+.enterprise-header h1 {
+    font-size: 2.3em;
+    margin-bottom: 8px;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+}
+.enterprise-header p {
+    font-size: 1.13em;
+    margin: 0;
+    opacity: 0.93;
+}
+.dashboard-section {
+    display: flex;
+    gap: 48px;
+    margin-bottom: 40px;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    align-items: flex-start;
+    padding: 0 48px;
+}
+.summary-table-section {
+    margin-bottom: 48px;
+    padding: 0 48px;
+}
+.enterprise-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    background: #fff;
+    box-shadow: 0 2px 16px rgba(0,0,0,0.08);
+    border-radius: 14px;
+    overflow-x: auto;
+}
+.enterprise-table th, .enterprise-table td {
+    padding: 18px 24px;
+    border-bottom: 1.5px solid #e3e7ee;
+    text-align: left;
+    font-size: 1.07em;
+}
+.enterprise-table th {
+    background: #f4f6fb;
+    color: #232526;
+    font-weight: 800;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    letter-spacing: 0.04em;
+    border-top: none;
+}
+.enterprise-table tr:last-child td {
+    border-bottom: none;
+}
+.enterprise-table tr:hover {
+    background: #eaf4ff;
+    transition: background 0.18s;
+}
+.severity-chip {
+    display: inline-block;
+    padding: 6px 20px;
+    border-radius: 18px;
+    font-size: 1.01em;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: 0.03em;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+    margin-right: 2px;
+}
+.severity-Critical { background: #c62828; }
+.severity-High { background: #ef6c00; }
+.severity-Medium { background: #fbc02d; color: #232526; }
+.severity-Low { background: #388e3c; }
+.severity-Unknown { background: #1976d2; }
+.cve-badge {
+    display: inline-block;
+    background: linear-gradient(90deg, #1976d2 60%, #64b5f6 100%);
+    color: #fff;
+    border-radius: 10px;
+    padding: 5px 14px;
+    margin: 2px 6px 2px 0;
+    font-size: 1em;
+    font-weight: 700;
+    text-decoration: none;
+    box-shadow: 0 1px 4px rgba(25, 118, 210, 0.10);
+    transition: background 0.2s, color 0.2s;
+    letter-spacing: 0.01em;
+}
+.cve-badge:hover {
+    background: linear-gradient(90deg, #0d47a1 60%, #1976d2 100%);
+    color: #fff;
+    text-decoration: underline;
+}
+.cve-na {
+    background: #bdbdbd !important;
+    color: #fff !important;
+}
+.legend {
+    margin: 24px 0 16px 0;
+    font-size: 1.09em;
+    padding: 0 48px;
+}
+.legend span {
+    margin-right: 32px;
+    padding-left: 26px;
+    position: relative;
+}
+.legend .severity-chip {
+    position: absolute;
+    left: 0;
+    top: 0;
+    transform: translateY(-2px);
+}
+.back-to-top {
+    display: inline-block;
+    margin-top: 18px;
+    color: #1976d2;
+    text-decoration: none;
+    font-size: 1.09em;
+    font-weight: 700;
+    padding-left: 48px;
+}
+.back-to-top:hover {
+    text-decoration: underline;
+}
+.image-nav {
+    position: sticky;
+    top: 0;
+    background: #232526;
+    color: #fff;
+    padding: 14px 0 14px 48px;
+    z-index: 100;
+    overflow-x: auto;
+    white-space: nowrap;
+    font-size: 1.13em;
+    font-weight: 700;
+    border-bottom: 2px solid #1976d2;
+    margin-bottom: 0;
+}
+.image-nav a {
+    color: #90caf9;
+    margin-right: 32px;
+    text-decoration: none;
+    font-weight: 700;
+    transition: color 0.2s;
+}
+.image-nav a:hover {
+    color: #fff;
+    text-decoration: underline;
+}
+html {
+    scroll-behavior: smooth;
+}
+.vuln-table-scroll {
+    overflow-x: auto;
+    width: 100%;
+    margin-bottom: 40px;
+}
+.toggleButton {
+    background: linear-gradient(90deg, #1976d2 60%, #64b5f6 100%);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 8px 22px;
+    cursor: pointer;
+    font-size: 1.04em;
+    font-weight: 700;
+    transition: background 0.2s;
+    margin: 0 0 0 0;
+    letter-spacing: 0.01em;
+}
+.toggleButton:hover {
+    background: linear-gradient(90deg, #0d47a1 60%, #1976d2 100%);
+}
+.details {
+    max-height: 340px;
+    overflow-y: auto;
+    border: 1.5px solid #e3e7ee;
+    padding: 18px 24px;
+    background-color: #f8fafc;
+    font-size: 1.04em;
+    white-space: pre-wrap;
+    border-radius: 10px;
+    margin-top: 10px;
+    line-height: 1.7;
+}
+section[id^="img-"] {
+    padding: 0 48px 36px 48px;
+}
+@media (max-width: 900px) {
+    .dashboard-section, .summary-table-section, .legend, section[id^="img-"], .enterprise-header, .back-to-top {
+        padding-left: 16px !important;
+        padding-right: 16px !important;
+    }
+    .dashboard-section {
+        gap: 24px;
+    }
+    .enterprise-header {
+        padding: 32px 16px 18px 16px;
+    }
+}
+    </style>
+    <script>
+        google.charts.load('current', {'packages':['corechart', 'bar']});
+        google.charts.setOnLoadCallback(drawDashboards);
+
+        function drawDashboards() {
+            // Pie chart for overall
+            var pieData = google.visualization.arrayToDataTable([
+                ['Severity', 'Count'],
+                ['Critical', {{ total_critical }}],
+                ['High', {{ total_high }}],
+                ['Medium', {{ total_medium }}],
+                ['Low', {{ total_low }}],
+                ['Unknown', {{ total_unknown }}]
+            ]);
+            var pieOptions = {
+                title: 'Overall Vulnerability Severity',
+                is3D: true,
+                colors: ['#c62828', '#ef6c00', '#fbc02d', '#388e3c', '#1976d2']
+            };
+            var pieChart = new google.visualization.PieChart(document.getElementById('overall_piechart'));
+            pieChart.draw(pieData, pieOptions);
+
+            // Bar chart for per-image total
+            var barData = google.visualization.arrayToDataTable([
+                ['Image', 'Critical', 'High', 'Medium', 'Low', 'Unknown'],
+                {% for row in summary_table %}
+                ['{{ row.image }}', {{ row.critical }}, {{ row.high }}, {{ row.medium }}, {{ row.low }}, {{ row.unknown }}],
+                {% endfor %}
+            ]);
+            var barOptions = {
+                title: 'Vulnerabilities per Image (by Severity)',
+                isStacked: true,
+                colors: ['#c62828', '#ef6c00', '#fbc02d', '#388e3c', '#1976d2'],
+                legend: { position: 'top', maxLines: 3 },
+                bar: { groupWidth: '75%' }
+            };
+            var barChart = new google.visualization.ColumnChart(document.getElementById('image_barchart'));
+            barChart.draw(barData, barOptions);
+        }
+        function toggleDetails(id) {
+            var element = document.getElementById(id);
+            if (element.style.display === "none" || element.style.display === "") {
+                element.style.display = "block";
+            } else {
+                element.style.display = "none";
+            }
+        }
+        function filterTable(tableId, severity) {
+            var table = document.getElementById(tableId);
+            var rows = table.getElementsByTagName("tr");
+            for (var i = 1; i < rows.length; i++) {
+                var row = rows[i];
+                if (row.getElementsByTagName("td").length === 0) continue;
+                if (row.getElementsByTagName("td").length === 1) continue;
+                var rowSeverity = row.getElementsByTagName("td")[0].textContent;
+                if (severity === "All" || rowSeverity === severity) {
+                    row.style.display = "";
+                } else {
+                    row.style.display = "none";
+                    if (i+1 < rows.length && rows[i+1].getElementsByTagName("td").length === 1) {
+                        rows[i+1].style.display = "none";
+                        i++;
+                    }
+                }
+            }
+        }
+        function searchTable(tableId) {
+            var input = document.getElementById("searchInput_" + tableId);
+            var filter = input.value.toUpperCase();
+            var table = document.getElementById(tableId);
+            var rows = table.getElementsByTagName("tr");
+            for (var i = 1; i < rows.length; i++) {
+                var row = rows[i];
+                if (row.getElementsByTagName("td").length <= 1) continue;
+                var cells = row.getElementsByTagName("td");
+                var found = false;
+                for (var j = 0; j < cells.length; j++) {
+                    var cell = cells[j];
+                    if (cell) {
+                        var txtValue = cell.textContent || cell.innerText;
+                        if (txtValue.toUpperCase().indexOf(filter) > -1) {
+                            found = true;
+                            break;
+                        }
+                    }
+                }
+                if (found) {
+                    row.style.display = "";
+                } else {
+                    row.style.display = "none";
+                    if (i+1 < rows.length && rows[i+1].getElementsByTagName("td").length == 1) {
+                        rows[i+1].style.display = "none";
+                        i++;
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body>
+    <div class="enterprise-header" id="top">
+        <h1>{{ report_title }}</h1>
+        <p>Generated on: {{ generated_on }}</p>
+    </div>
+    <nav class="image-nav">
+        <strong>Jump to Image:</strong>
+        {% for row in summary_table %}
+            <a href="#img-{{ loop.index0 }}">{{ row.image }}</a>
+        {% endfor %}
+    </nav>
+    <div class="dashboard-section">
+        <div id="overall_piechart" style="width: 420px; height: 320px; display:inline-block;"></div>
+        <div id="image_barchart" style="width: 660px; height: 320px; display:inline-block;"></div>
+    </div>
+    <div class="legend">
+        <span><span class="severity-chip severity-Critical"></span> Critical</span>
+        <span><span class="severity-chip severity-High"></span> High</span>
+        <span><span class="severity-chip severity-Medium"></span> Medium</span>
+        <span><span class="severity-chip severity-Low"></span> Low</span>
+        <span><span class="severity-chip severity-Unknown"></span> Unknown</span>
+    </div>
+    <div class="summary-table-section">
+        <h2>Image Vulnerability Summary</h2>
+        <div class="vuln-table-scroll">
+        <table class="enterprise-table">
+            <thead>
+                <tr>
+                    <th>Image</th>
+                    <th>Total</th>
+                    <th>Critical</th>
+                    <th>High</th>
+                    <th>Medium</th>
+                    <th>Low</th>
+                    <th>Unknown</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in summary_table %}
+                <tr>
+                    <td><a href="#img-{{ loop.index0 }}">{{ row.image }}</a></td>
+                    <td><b>{{ row.total }}</b></td>
+                    <td><span class="severity-chip severity-Critical">{{ row.critical }}</span></td>
+                    <td><span class="severity-chip severity-High">{{ row.high }}</span></td>
+                    <td><span class="severity-chip severity-Medium">{{ row.medium }}</span></td>
+                    <td><span class="severity-chip severity-Low">{{ row.low }}</span></td>
+                    <td><span class="severity-chip severity-Unknown">{{ row.unknown }}</span></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        </div>
+    </div>
+    {% for report in image_reports %}
+        <section id="img-{{ loop.index0 }}">
+            <h2>{{ report.image }}</h2>
+            <div class="vuln-table-scroll">
+            <table class="enterprise-table">
+                <thead>
+                    <tr>
+                        <th>Severity</th>
+                        <th>Package Name</th>
+                        <th>Version</th>
+                        <th>Summary</th>
+                        <th>Fixed Versions</th>
+                        <th>CVEs</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for vuln in report.vuln_details %}
+                    <tr>
+                        <td><span class="severity-chip severity-{{ vuln.severity }}">{{ vuln.severity }}</span></td>
+                        <td>{{ vuln.package }}</td>
+                        <td>{{ vuln.version }}</td>
+                        <td>{{ vuln.summary }}</td>
+                        <td>{{ vuln.fixed }}</td>
+                        <td>
+                            {% if vuln.cve_list %}
+                                {% for cve in vuln.cve_list %}
+                                    <a href="{{ cve.url }}" target="_blank" class="cve-badge">{{ cve.id }}</a>
+                                {% endfor %}
+                            {% else %}
+                                <span class="cve-badge cve-na">N/A</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <button class="toggleButton" onclick="toggleDetails('{{ vuln.vuln_id }}')">Details</button>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td colspan="7">
+                            <div id="{{ vuln.vuln_id }}" class="details" style="display:none;">
+                                <strong>Issue ID:</strong> {{ vuln.issue_id }}<br>
+                                <strong>Details:</strong><br>
+                                {{ vuln.details }}
+                                <br><br>
+                                <strong>References:</strong><br>
+                                {{ vuln.references }}
+                            </div>
+                        </td>
+                    </tr>
+                {% endfor %}
+                {% if report.vuln_details|length == 0 %}
+                    <tr>
+                        <td colspan="7">No vulnerabilities found</td>
+                    </tr>
+                {% endif %}
+                </tbody>
+            </table>
+            </div>
+            <a href="#top" class="back-to-top">Back to Top</a>
+        </section>
+    {% endfor %}
+    <script type="text/javascript">
+        google.charts.load('current', {'packages':['corechart', 'bar']});
+        google.charts.setOnLoadCallback(drawDashboards);
+
+        function drawDashboards() {
+            // Pie chart for overall
+            var pieData = google.visualization.arrayToDataTable([
+                ['Severity', 'Count'],
+                ['Critical', {{ total_critical }}],
+                ['High', {{ total_high }}],
+                ['Medium', {{ total_medium }}],
+                ['Low', {{ total_low }}],
+                ['Unknown', {{ total_unknown }}]
+            ]);
+            var pieOptions = {
+                title: 'Overall Vulnerability Severity',
+                is3D: true,
+                colors: ['#c62828', '#ef6c00', '#fbc02d', '#388e3c', '#1976d2']
+            };
+            var pieChart = new google.visualization.PieChart(document.getElementById('overall_piechart'));
+            pieChart.draw(pieData, pieOptions);
+
+            // Bar chart for per-image total
+            var barData = google.visualization.arrayToDataTable([
+                ['Image', 'Critical', 'High', 'Medium', 'Low', 'Unknown'],
+                {% for row in summary_table %}
+                ['{{ row.image }}', {{ row.critical }}, {{ row.high }}, {{ row.medium }}, {{ row.low }}, {{ row.unknown }}],
+                {% endfor %}
+            ]);
+            var barOptions = {
+                title: 'Vulnerabilities per Image (by Severity)',
+                isStacked: true,
+                colors: ['#c62828', '#ef6c00', '#fbc02d', '#388e3c', '#1976d2'],
+                legend: { position: 'top', maxLines: 3 },
+                bar: { groupWidth: '75%' }
+            };
+            var barChart = new google.visualization.ColumnChart(document.getElementById('image_barchart'));
+            barChart.draw(barData, barOptions);
+        }
+        function toggleDetails(id) {
+            var element = document.getElementById(id);
+            if (element.style.display === "none" || element.style.display === "") {
+                element.style.display = "block";
+            } else {
+                element.style.display = "none";
+            }
+        }
+    </script>
+</body>
+</html>
