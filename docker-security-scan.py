@@ -196,6 +196,13 @@ def main():
     image_reports = []
     summary_table = []
 
+    # --- Dashboard stats ---
+    all_vulns = []
+    severity_counts = {}
+    package_type_counts = {}
+    package_counts = {}
+    cve_counts = {}
+
     # Parallel scan
     logger.info("Starting parallel scan of images...")
     with concurrent.futures.ThreadPoolExecutor() as executor:
@@ -213,6 +220,20 @@ def main():
             image_report, summary_row = result
             image_reports.append(image_report)
             summary_table.append(summary_row)
+            # For dashboards: collect all vulnerabilities
+            for vuln in image_report['vuln_details']:
+                all_vulns.append(vuln)
+                sev = vuln['severity']
+                severity_counts[sev] = severity_counts.get(sev, 0) + 1
+                # Package type (e.g. "ubuntu" from "ubuntu:noble:libpam0g")
+                pkg_type = vuln['package'].split(':')[0] if ':' in vuln['package'] else vuln['package']
+                package_type_counts[pkg_type] = package_type_counts.get(pkg_type, 0) + 1
+                # Top packages
+                package_counts[vuln['package']] = package_counts.get(vuln['package'], 0) + 1
+                # Top CVEs
+                for cve in vuln.get('cve_list', []):
+                    cve_id = cve['id']
+                    cve_counts[cve_id] = cve_counts.get(cve_id, 0) + 1
             total_critical += summary_row['critical']
             total_high += summary_row['high']
             total_medium += summary_row['medium']
@@ -222,6 +243,18 @@ def main():
     # Sort image_reports and summary_table for consistent navigation
     image_reports.sort(key=lambda x: x['image'])
     summary_table.sort(key=lambda x: x['image'])
+
+    # Prepare dashboard stats
+    total_vulns = len(all_vulns)
+    top_packages = sorted(package_counts.items(), key=lambda x: x[1], reverse=True)[:10]
+    top_cves = sorted(cve_counts.items(), key=lambda x: x[1], reverse=True)[:10]
+    dashboard_stats = {
+        "total_vulns": total_vulns,
+        "severity_counts": severity_counts,
+        "package_type_counts": package_type_counts,
+        "top_packages": top_packages,
+        "top_cves": top_cves,
+    }
 
     logger.info("Rendering HTML report using Jinja2 template...")
     env = Environment(
@@ -240,6 +273,7 @@ def main():
         total_medium=total_medium,
         total_low=total_low,
         total_unknown=total_unknown,
+        dashboard_stats=dashboard_stats,
     )
 
     with open(html_report, "w") as f:
